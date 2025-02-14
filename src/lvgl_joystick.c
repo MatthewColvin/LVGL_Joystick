@@ -1,5 +1,6 @@
 #include "lvgl_joystick.h"
 #include <math.h>
+#include <stdlib.h>
 
 // Event handler for the joystick
 static void joystic_event_handler(lv_event_t *e) {
