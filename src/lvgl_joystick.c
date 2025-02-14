@@ -70,6 +70,9 @@ static void joystic_event_handler(lv_event_t *e) {
     case LV_EVENT_RELEASED:
       joystick_handle_release(joystick_data, obj);
       break;
+    case LV_EVENT_DELETE:
+      free(joystick_data);
+      break;
     default:
       break;
   }
