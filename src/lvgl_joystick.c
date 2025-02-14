@@ -3,9 +3,19 @@
 #include <math.h>
 #include <stdlib.h>
 
+static void joystick_trigger_callback(joystick_data_t *data, int16_t x,
+                                      int16_t y) {
+  if (data->position_callback) {
+    data->position_callback(data->joystick_id, x, y);
+  }
+}
+
 static void joystick_handle_release(joystick_data_t *data,
                                     lv_obj_t *stick_obj) {
   lv_obj_set_pos(stick_obj, 0, 0);
+  if (data->report_mode == JOYSTICK_REPORT_MODE_ABSOLUTE) {
+    joystick_trigger_callback(data, 0, 0);
+  }
 }
 
 static void joystick_handle_pressing(joystick_data_t *data,
@@ -24,11 +34,20 @@ static void joystick_handle_pressing(joystick_data_t *data,
   uint8_t stick_radius = data->stick_radius;
 
   float distance_from_center = sqrt(x * x + y * y);
-  if (distance_from_center < base_radius - (stick_radius * 1.2)) {
-    lv_obj_set_pos(stick_obj, x, y);
-    if (data->position_callback) {
-      data->position_callback(joystick_id, vect.x, vect.y);
-    }
+  bool should_move_stick =
+      distance_from_center < base_radius - (stick_radius * 1.2);
+  if (!should_move_stick) {
+    return;
+  }
+  lv_obj_set_pos(stick_obj, x, y);
+
+  if (!data->position_callback) {
+    return;  // No callback so bail
+  }
+  if (data->report_mode == JOYSTICK_REPORT_MODE_ABSOLUTE) {
+    joystick_trigger_callback(data, x, y);
+  } else if (data->report_mode == JOYSTICK_REPORT_MODE_RELATIVE) {
+    joystick_trigger_callback(data, vect.x, vect.y);
   }
 }
 
@@ -61,7 +80,8 @@ void create_joystick(lv_obj_t *parent, uint8_t joystick_id,
                      lv_align_t base_align, int base_x, int base_y,
                      int base_radius, int stick_radius, lv_style_t *base_style,
                      lv_style_t *stick_style,
-                     joystick_position_cb_t position_callback) {
+                     joystick_position_cb_t position_callback,
+                     joystick_report_mode_t report_mode) {
   // Allocate and initialize joystick data
   joystick_data_t *joystick_data =
       (joystick_data_t *)malloc(sizeof(joystick_data_t));
@@ -69,6 +89,7 @@ void create_joystick(lv_obj_t *parent, uint8_t joystick_id,
   joystick_data->base_radius = base_radius;
   joystick_data->stick_radius = stick_radius;
   joystick_data->position_callback = position_callback;
+  joystick_data->report_mode = report_mode;
 
   // Create or use provided base style
   static lv_style_t default_base_style;
